@@ -14,7 +14,7 @@ public class CustomBlocks {
 
     public static final Block ASYNC_CRAFTING_TABLE = registerBlock(
             "async_crafting_table",
-            new Block(AbstractBlock.Settings.copy(Blocks.CRAFTING_TABLE))
+            new AsyncCraftingTableBlock(AbstractBlock.Settings.copy(Blocks.CRAFTING_TABLE))
     );
 
     // Registers the block AND its item form (so you can hold it in your hand)

@@ -23,6 +23,8 @@ public class AsynchronousWorkstations implements ModInitializer {
 
 		LOGGER.info("Hello Fabric world!");
 		CustomBlocks.initialize();
+		CustomBlockEntities.initialize();
+		CustomScreenHandlers.initialize();
 	}
 
 	public static Identifier id(String path) {

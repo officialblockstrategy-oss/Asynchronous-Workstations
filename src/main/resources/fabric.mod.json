@@ -17,6 +17,9 @@
 	"entrypoints": {
 		"main": [
 			"com.blockstrategy.asynchstations.AsynchronousWorkstations"
+		],
+		"client": [
+			"com.blockstrategy.asynchstations.AsynchronousWorkstationsClient"
 		]
 	},
 	"mixins": [
