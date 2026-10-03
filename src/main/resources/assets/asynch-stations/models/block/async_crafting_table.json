@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "asynch-stations:block/async_crafting_table"
+  }
+}
