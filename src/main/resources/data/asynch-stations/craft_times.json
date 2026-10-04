@@ -1,0 +1,18 @@
+{
+  "input_ingredient_seconds": {
+    "minecraft:iron_ingot": 3,
+    "minecraft:diamond": 5,
+    "minecraft:stick": 2
+  },
+  "strict_output_seconds": {
+    "minecraft:beacon": 120,
+    "minecraft:stick": 0
+  },
+  "fallback_itemclass_seconds": {
+    "ArmorItem": 30,
+    "SwordItem": 20,
+    "ToolItem": 15,
+    "BlockItem": 2,
+    "Item": 3
+  }
+}

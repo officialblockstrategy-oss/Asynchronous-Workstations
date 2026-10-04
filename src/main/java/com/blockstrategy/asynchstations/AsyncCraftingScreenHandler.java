@@ -24,24 +24,24 @@ import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.world.World;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
 public class AsyncCraftingScreenHandler extends AbstractRecipeScreenHandler<CraftingRecipeInput, CraftingRecipe> {
     private static final int RESULT_SLOT = 0;
+    public static final int CANCEL_BUTTON = 0;
     private static final int GRID_START = 1;
     private static final int INVENTORY_START = 10;
     private static final int HOTBAR_START = 37;
     private static final int SLOT_COUNT = 46;
 
-    private final RecipeInputInventory craftingInventory = new CraftingInventory(this, 3, 3);
+    private final RecipeInputInventory craftingInventory;
     private final CraftingResultInventory resultInventory = new CraftingResultInventory();
     private final PlayerEntity player;
     private final ScreenHandlerContext context;
     private final PropertyDelegate trayProgress;
     // Null on the client: only the server knows about the trays.
     private final AsyncCraftingTableBlockEntity table;
+    private final CraftTray tray;
 
     public AsyncCraftingScreenHandler(int syncId, PlayerInventory playerInventory) {
         this(syncId, playerInventory, null);
@@ -51,6 +51,9 @@ public class AsyncCraftingScreenHandler extends AbstractRecipeScreenHandler<Craf
         super(CustomScreenHandlers.ASYNC_CRAFTING_TABLE, syncId);
         this.player = playerInventory.player;
         this.table = table;
+        this.tray = table == null ? null : table.trayFor(player.getUuid());
+        // The grid is the tray's own list, so every change the player makes is stored right away.
+        this.craftingInventory = tray == null ? new CraftingInventory(this, 3, 3) : new CraftingInventory(this, 3, 3, tray.grid);
         this.context = table == null ? ScreenHandlerContext.EMPTY : ScreenHandlerContext.create(table.getWorld(), table.getPos());
         this.trayProgress = table == null ? new ArrayPropertyDelegate(5) : table.trayProgress(player.getUuid());
 
@@ -95,11 +98,10 @@ public class AsyncCraftingScreenHandler extends AbstractRecipeScreenHandler<Craf
         return trayProgress.get(4);
     }
 
-    // While the player has a batch here, the result slot shows an icon for its ready items instead of a recipe preview.
+    // While the player has a batch here, the result slot shows an icon for it instead of a recipe preview. With nothing ready yet it is only a preview.
     private ItemStack shownResult() {
-        CraftTray tray = table.getTray(player.getUuid());
-        if (tray != null) {
-            return tray.ready > 0 ? tray.result.copyWithCount(1) : ItemStack.EMPTY;
+        if (tray.hasBatch()) {
+            return tray.result.copyWithCount(1);
         }
         World world = table.getWorld();
         CraftingRecipeInput input = craftingInventory.createRecipeInput();
@@ -116,6 +118,7 @@ public class AsyncCraftingScreenHandler extends AbstractRecipeScreenHandler<Craf
         if (table == null) {
             return;
         }
+        table.markDirty();
         ItemStack shown = shownResult();
         resultInventory.setStack(RESULT_SLOT, shown);
         setPreviousTrackedSlot(RESULT_SLOT, shown);
@@ -125,7 +128,7 @@ public class AsyncCraftingScreenHandler extends AbstractRecipeScreenHandler<Craf
     // Crafts finish while the screen is open, so the result slot has to follow the tray.
     @Override
     public void sendContentUpdates() {
-        if (table != null && table.getTray(player.getUuid()) != null) {
+        if (table != null && tray.hasBatch()) {
             resultInventory.setStack(RESULT_SLOT, shownResult());
         }
         super.sendContentUpdates();
@@ -144,17 +147,15 @@ public class AsyncCraftingScreenHandler extends AbstractRecipeScreenHandler<Craf
     }
 
     private void takeResult(boolean shiftClick) {
-        CraftTray tray = table.getTray(player.getUuid());
-        if (tray == null) {
+        if (!tray.hasBatch()) {
             startBatch(shiftClick);
             return;
         }
         if (shiftClick) {
             moveReadyToInventory(tray);
         } else {
-            moveReadyToCursor(tray);
+            tray.moveReadyToCursor(this);
         }
-        table.removeIfEmpty(player.getUuid());
         onContentChanged(craftingInventory);
     }
 
@@ -163,37 +164,8 @@ public class AsyncCraftingScreenHandler extends AbstractRecipeScreenHandler<Craf
         if (crafted.isEmpty()) {
             return;
         }
-        List<ItemStack> ingredients = new ArrayList<>();
-        int smallestStack = Integer.MAX_VALUE;
-        for (int i = 0; i < craftingInventory.size(); i++) {
-            ItemStack stack = craftingInventory.getStack(i);
-            if (!stack.isEmpty()) {
-                ingredients.add(stack.copyWithCount(1));
-                smallestStack = Math.min(smallestStack, stack.getCount());
-            }
-        }
-        int crafts = wholeGrid ? smallestStack : 1;
-        table.startCraft(player.getUuid(), crafted, ingredients, crafts, CraftTimes.getCraftTicks(crafted));
-        // Uses up one set of ingredients per craft the same way vanilla does, and unlocks the recipe.
-        for (int i = 0; i < crafts; i++) {
-            slots.get(RESULT_SLOT).onTakeItem(player, crafted);
-        }
-    }
-
-    private void moveReadyToCursor(CraftTray tray) {
-        ItemStack taken = tray.readyStack();
-        ItemStack cursor = getCursorStack();
-        if (taken.isEmpty()) {
-            return;
-        }
-        if (cursor.isEmpty()) {
-            setCursorStack(taken);
-        } else if (ItemStack.areItemsAndComponentsEqual(cursor, taken) && cursor.getCount() + taken.getCount() <= cursor.getMaxCount()) {
-            cursor.increment(taken.getCount());
-        } else {
-            return;
-        }
-        tray.ready -= tray.craftsShown();
+        tray.begin(crafted, craftingInventory, wholeGrid);
+        tray.consumeIngredients(player, slots.get(RESULT_SLOT));
     }
 
     private void moveReadyToInventory(CraftTray tray) {
@@ -208,11 +180,25 @@ public class AsyncCraftingScreenHandler extends AbstractRecipeScreenHandler<Craf
                 space += slot.getMaxItemCount(tray.result) - stack.getCount();
             }
         }
-        int crafts = Math.min(tray.ready, space / tray.result.getCount());
-        if (crafts > 0) {
-            insertItem(tray.result.copyWithCount(crafts * tray.result.getCount()), INVENTORY_START, SLOT_COUNT, true);
-            tray.ready -= crafts;
+        tray.moveReady(space, moved -> insertItem(moved, INVENTORY_START, SLOT_COUNT, true));
+    }
+
+    @Override
+    public boolean onButtonClick(PlayerEntity player, int id) {
+        if (id != CANCEL_BUTTON || table == null) {
+            return false;
         }
+        cancelQueue();
+        return true;
+    }
+
+    // Ready items stay in the tray; only crafts that haven't finished are refunded.
+    private void cancelQueue() {
+        if (tray.waiting == 0) {
+            return;
+        }
+        tray.refundUnfinished(player);
+        onContentChanged(craftingInventory);
     }
 
     @Override
@@ -253,10 +239,13 @@ public class AsyncCraftingScreenHandler extends AbstractRecipeScreenHandler<Craf
         return slot.inventory != resultInventory && super.canInsertIntoSlot(stack, slot);
     }
 
+    // The grid stays in the tray, so unlike vanilla nothing is handed back here.
     @Override
     public void onClosed(PlayerEntity player) {
         super.onClosed(player);
-        context.run((world, pos) -> dropInventory(player, craftingInventory));
+        if (table != null) {
+            table.removeIfEmpty(player.getUuid());
+        }
     }
 
     @Override

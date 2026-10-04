@@ -8,5 +8,6 @@ public class AsynchronousWorkstationsClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		HandledScreens.register(CustomScreenHandlers.ASYNC_CRAFTING_TABLE, AsyncCraftingScreen::new);
+		InventoryCraftingDisplay.register();
 	}
 }

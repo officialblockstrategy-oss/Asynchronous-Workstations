@@ -3,7 +3,9 @@
 	"package": "com.blockstrategy.asynchstations.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
-		"ExampleMixin"
+		"ExampleMixin",
+		"PlayerScreenHandlerMixin",
+		"ScreenHandlerMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

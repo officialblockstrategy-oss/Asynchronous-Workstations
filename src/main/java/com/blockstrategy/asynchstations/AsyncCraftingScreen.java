@@ -4,6 +4,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.gui.screen.recipebook.RecipeBookProvider;
 import net.minecraft.client.gui.screen.recipebook.RecipeBookWidget;
+import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TexturedButtonWidget;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.screen.slot.Slot;
@@ -17,6 +18,7 @@ public class AsyncCraftingScreen extends HandledScreen<AsyncCraftingScreenHandle
     private static final Identifier ARROW_PROGRESS = Identifier.ofVanilla("container/furnace/burn_progress");
 
     private final RecipeBookWidget recipeBook = new RecipeBookWidget();
+    private ButtonWidget cancelButton;
     private boolean narrow;
 
     public AsyncCraftingScreen(AsyncCraftingScreenHandler handler, PlayerInventory inventory, Text title) {
@@ -35,6 +37,9 @@ public class AsyncCraftingScreen extends HandledScreen<AsyncCraftingScreenHandle
             button.setPosition(x + 5, height / 2 - 49);
         }));
         addSelectableChild(recipeBook);
+        cancelButton = addDrawableChild(ButtonWidget.builder(Text.literal("Cancel"),
+                button -> client.interactionManager.clickButton(handler.syncId, AsyncCraftingScreenHandler.CANCEL_BUTTON))
+                .dimensions(x + 112, y + 16, 40, 13).build());
         setInitialFocus(recipeBook);
         titleX = 29;
     }
@@ -43,6 +48,8 @@ public class AsyncCraftingScreen extends HandledScreen<AsyncCraftingScreenHandle
     public void handledScreenTick() {
         super.handledScreenTick();
         recipeBook.update();
+        cancelButton.visible = handler.totalItems() > handler.readyItems();
+        cancelButton.setPosition(x + 112, y + 16);
     }
 
     @Override
@@ -76,18 +83,18 @@ public class AsyncCraftingScreen extends HandledScreen<AsyncCraftingScreenHandle
         int total = handler.totalItems();
         if (total > ready) {
             // Two lines because the full text is wider than the space beside the grid.
-            drawCentered(context, "Crafting: " + formatTime(handler.remainingSeconds()), 56);
-            drawCentered(context, "(" + ready + "/" + total + " ready)", 66);
+            drawCentered(context, "Crafting: " + formatTime(handler.remainingSeconds()), 60);
+            drawCentered(context, "(" + ready + "/" + total + " ready)", 70);
         } else if (ready > 0) {
-            drawCentered(context, "Ready: " + ready, 56);
+            drawCentered(context, "Ready: " + ready, 60);
         }
     }
 
     private void drawCentered(DrawContext context, String text, int textY) {
-        context.drawText(textRenderer, text, 132 - textRenderer.getWidth(text) / 2, textY, 0x404040, false);
+        context.drawText(textRenderer, text, 128 - textRenderer.getWidth(text) / 2, textY, 0x404040, false);
     }
 
-    private static String formatTime(int seconds) {
+    static String formatTime(int seconds) {
         return seconds >= 60 ? seconds / 60 + "m " + seconds % 60 + "s" : seconds + "s";
     }
 

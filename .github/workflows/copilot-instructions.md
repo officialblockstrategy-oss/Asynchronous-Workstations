@@ -38,8 +38,10 @@ Timers run on the server and only while the chunk is loaded.
 - Each player may run 2 crafts at once. A third within 16 blocks of their
   other active tables is queued, not refused. Status text under the output
   slot explains the state ("Crafting: 2m 6s", "Queued: ...").
-- Craft time comes from CraftTimes.java: per-item overrides first, then item
-  class (so modded items work), then a default.
+- Craft time comes from CraftTimes.java, which reads
+  data/asynch-stations/craft_times.json: output_seconds first, then the summed
+  ingredient_seconds (items, then #tags), then fallback_itemclass_seconds (so
+  modded items work).
 - If a table is broken, every tray's contents drop as items.
 - The async table is displayed as "Crafting Table" on purpose.
 

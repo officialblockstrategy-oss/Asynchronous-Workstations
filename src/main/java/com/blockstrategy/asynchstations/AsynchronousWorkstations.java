@@ -25,6 +25,9 @@ public class AsynchronousWorkstations implements ModInitializer {
 		CustomBlocks.initialize();
 		CustomBlockEntities.initialize();
 		CustomScreenHandlers.initialize();
+		CraftTimes.initialize();
+		CustomAttachments.initialize();
+		InventoryCrafting.initialize();
 	}
 
 	public static Identifier id(String path) {
