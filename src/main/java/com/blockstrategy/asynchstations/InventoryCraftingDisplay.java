@@ -54,12 +54,6 @@ public class InventoryCraftingDisplay {
                 .dimensions(0, 0, CANCEL_WIDTH, CANCEL_HEIGHT).build();
         Screens.getButtons(screen).add(cancelButton);
 
-        ScreenEvents.afterTick(screen).register(tickedScreen -> {
-            // Pressing the vanilla button also fixes the screen's position for the closed panel.
-            if (isCrafting(client) && screen.getRecipeBookWidget().isOpen()) {
-                recipeButton.onPress();
-            }
-        });
         ScreenEvents.beforeRender(screen).register((renderedScreen, context, mouseX, mouseY, tickDelta) -> {
             boolean crafting = isCrafting(client);
             recipeButton.visible = !crafting;
